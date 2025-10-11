@@ -1,0 +1,14 @@
+# build files
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# macOS junk
+.DS_Store
+
+# compiled binaries
+SolarSystem
+*.o
+*.out
