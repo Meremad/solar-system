@@ -19,12 +19,12 @@
 #include <map>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "../include/stb_image.h" // put stb_image.h in include/
+#include "../include/stb_image.h"
 
 const unsigned int SCR_W = 1280;
 const unsigned int SCR_H = 720;
 
-// --- file helpers (unchanged) ---
+// --- file helpers ---
 std::string tryPrefixes(const std::string &rel) {
     const std::vector<std::string> prefixes = { "", "../", "./", "../../", "../../../" };
     for (const auto &p : prefixes) {
@@ -34,6 +34,7 @@ std::string tryPrefixes(const std::string &rel) {
     }
     return rel;
 }
+
 std::string readFile(const std::string &rel) {
     std::string path = tryPrefixes(rel);
     std::ifstream in(path);
@@ -60,9 +61,7 @@ std::string formatSimulatedTime(float simulatedTimeDays) {
     return res;
 }
 
-
-
-// --- shader utils (unchanged) ---
+// --- shader utils ---
 GLuint compileShaderSrc(const char* src, GLenum type, const char* name) {
     GLuint sh = glCreateShader(type);
     glShaderSource(sh, 1, &src, NULL);
@@ -74,6 +73,7 @@ GLuint compileShaderSrc(const char* src, GLenum type, const char* name) {
     } else std::cout << "Compiled: " << name << std::endl;
     return sh;
 }
+
 GLuint linkProgram(GLuint vs, GLuint fs) {
     GLuint p = glCreateProgram();
     glAttachShader(p, vs); glAttachShader(p, fs);
@@ -86,36 +86,31 @@ GLuint linkProgram(GLuint vs, GLuint fs) {
     return p;
 }
 
-// --- sphere generator (unchanged) ---
+// --- sphere generator ---
 void createSphere(float radius, unsigned int sectorCount, unsigned int stackCount,
                   std::vector<float>& vertices, std::vector<unsigned int>& indices)
 {
     vertices.clear(); indices.clear();
     const float PI = acos(-1.0f);
     for (unsigned int i = 0; i <= stackCount; ++i) {
-        float stackAngle = PI/2 - (float)i * PI / stackCount;
+
+        float stackAngle = -PI/2 + (float)i * PI / stackCount; 
         float xy = radius * cosf(stackAngle);
         float z = radius * sinf(stackAngle);
         for (unsigned int j = 0; j <= sectorCount; ++j) {
             float sectorAngle = (float)j * 2.0f * PI / sectorCount;
             float x = xy * cosf(sectorAngle);
             float y = xy * sinf(sectorAngle);
-
-            vertices.push_back(x); 
-            vertices.push_back(y); 
+            vertices.push_back(x);
+            vertices.push_back(y);
             vertices.push_back(z);
-
-            glm::vec3 n = glm::normalize(glm::vec3(x,y,z));
+            glm::vec3 n = glm::normalize(glm::vec3(x, y, z));
             vertices.push_back(n.x); vertices.push_back(n.y); vertices.push_back(n.z);
-
             float s = (float)j / sectorCount;
             float t = (float)i / stackCount;
-
-            vertices.push_back(s);         // U
-            vertices.push_back(t);         // V
+            vertices.push_back(s); vertices.push_back(t);
         }
     }
-
     for (unsigned int i = 0; i < stackCount; ++i) {
         unsigned int k1 = i * (sectorCount + 1);
         unsigned int k2 = k1 + sectorCount + 1;
@@ -144,7 +139,7 @@ void createOrbitLine(float radius, int segments, std::vector<float> &vertices) {
     }
 }
 
-// --- texture loader (unchanged) ---
+// --- texture loader ---
 GLuint loadTextureTry(const std::string &relPath) {
     std::string path = tryPrefixes(relPath);
     int w,h,comp;
@@ -157,8 +152,8 @@ GLuint loadTextureTry(const std::string &relPath) {
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     stbi_image_free(data);
     std::cout << "Loaded texture: " << path << " (" << w << "x" << h << ")\n";
     return tex;
@@ -230,12 +225,10 @@ void createRingMesh(GLuint &ringVAO, GLuint &ringVBO, GLuint &ringEBO, GLsizei &
         float x = cosf(theta);
         float z = sinf(theta);
 
-        // outer vertex (pos, normal, uv)
         verts.push_back(outerR * x); verts.push_back(0.0f); verts.push_back(outerR * z);
         verts.push_back(0.0f); verts.push_back(1.0f); verts.push_back(0.0f);
         verts.push_back((float)i / segments); verts.push_back(0.0f);
 
-        // inner vertex
         verts.push_back(innerR * x); verts.push_back(0.0f); verts.push_back(innerR * z);
         verts.push_back(0.0f); verts.push_back(1.0f); verts.push_back(0.0f);
         verts.push_back((float)i / segments); verts.push_back(1.0f);
@@ -266,9 +259,11 @@ void createRingMesh(GLuint &ringVAO, GLuint &ringVBO, GLuint &ringEBO, GLsizei &
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2,2,GL_FLOAT,GL_FALSE,stride,(void*)(6*sizeof(float)));
     glBindVertexArray(0);
+    
+    ringIndexCount = (GLsizei)idx.size();
 }
 
-// --- camera (orbit+fly) unchanged except additional setter ---
+// --- camera ---
 bool flyMode = false;
 bool keysArr[1024] = { false };
 
@@ -322,16 +317,18 @@ struct OrbitCam {
             flyPos += glm::normalize(move) * speed * dt;
         }
     }
+    
     void setTarget(const glm::vec3& t) {
         target = t;
     }
 } cam;
 
-// input states (unchanged)
+// input states
 static bool leftDown = false;
 static double lastX = 0.0, lastY = 0.0;
 
 void mouseBtnCB(GLFWwindow* w, int button, int action, int mods) {
+    if (ImGui::GetIO().WantCaptureMouse) return; 
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) {
             leftDown = true;
@@ -341,20 +338,32 @@ void mouseBtnCB(GLFWwindow* w, int button, int action, int mods) {
 }
 
 void cursorPosCB(GLFWwindow* w, double x, double y) {
+    if (ImGui::GetIO().WantCaptureMouse) return;
+    
     double dx = x - lastX;
     double dy = y - lastY;
     float sens = 0.0045f;
-    if (leftDown || flyMode) {
+    
+    if (leftDown && !flyMode) {
+        cam.yaw   -= (float)(dx * sens);
+        cam.pitch -= (float)(dy * sens);
+        float lim = glm::radians(89.0f);
+        if (cam.pitch > lim) cam.pitch = lim;
+        if (cam.pitch < -lim) cam.pitch = -lim;
+    } else if (flyMode) {
         cam.yaw   -= (float)(dx * sens);
         cam.pitch -= (float)(dy * sens);
         float lim = glm::radians(89.0f);
         if (cam.pitch > lim) cam.pitch = lim;
         if (cam.pitch < -lim) cam.pitch = -lim;
     }
+    
     lastX = x; lastY = y;
 }
 
 void scrollCB(GLFWwindow* w, double xoff, double yoff) {
+    if (ImGui::GetIO().WantCaptureMouse) return; 
+    
     if (!flyMode) {
         cam.distance *= (float)pow(0.9, yoff);
         if (cam.distance < cam.minD) cam.distance = cam.minD;
@@ -383,49 +392,43 @@ void keyCB(GLFWwindow* w, int key, int sc, int action, int mods) {
     }
 }
 
-
-// Utility: convert orbital period in days to degrees per second
 auto degPerSec = [](float days) -> float {
     return 360.0f / (days * 86400.0f);
 };
 
-
-// Timing vars for simulation controls
 bool simulationRunning = true;
-float timeMultiplier = 1.0f;   // Simulation speed multiplier (times real speed)
+float timeMultiplier = 1.0f;
 float simulatedTimeDays = 0.0f;
 
-// Planet data structure including axial tilt and rotation speed
+struct Moon {
+    std::string name;
+    float orbitRadius;
+    float orbitSpeed;
+    float rotationSpeed;
+    float size;
+    GLuint texture;
+    float orbitAngle;
+    float rotationAngle;
+};
+
 struct Planet {
     std::string name;
     float orbitRadius;
-    float orbitSpeed;   // degrees per second (orbiting around sun)
-    float rotationSpeed; // degrees per second (self spin)
-    float axialTilt;    // degrees tilt on own axis
+    float orbitSpeed;
+    float rotationSpeed;
+    float axialTilt;
     float size;
     GLuint texture;
     float orbitAngle;
     float rotationAngle;
     bool hasRing;
     GLuint ringTex;
+    std::vector<Moon> moons; 
 };
 
-// Main function
 int main() {
-    std::map<int, std::string> planetChoices = {
-        {0, "Mercury"}, {1, "Venus"}, {2, "Earth"}, {3, "Mars"},
-        {4, "Jupiter"}, {5, "Saturn"}, {6, "Uranus"}, {7, "Neptune"}
-    };
     int selectedPlanetIndex = -1;
-    std::cout << "Select a planet to focus camera on:\n";
-    for (auto& [i, name] : planetChoices) {
-        std::cout << i << ": " << name << "\n";
-    }
-    std::cout << "Enter number (-1 for none): ";
-    std::cin >> selectedPlanetIndex;
-    if (selectedPlanetIndex < -1 || selectedPlanetIndex > 7) selectedPlanetIndex = -1;
 
-    // Initialize GLFW window context
     if (!glfwInit()) { std::cerr << "GLFW init failed\n"; return -1; }
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,3);
@@ -434,7 +437,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    GLFWwindow* window = glfwCreateWindow(SCR_W, SCR_H, "SolarSystem (orbit + fly cam)", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_W, SCR_H, "Solar System Explorer", NULL, NULL);
     if (!window) { std::cerr << "Window create failed\n"; glfwTerminate(); return -1; }
     glfwMakeContextCurrent(window);
 
@@ -446,7 +449,6 @@ int main() {
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) { std::cerr << "GLEW init failed\n"; return -1; }
 
-    // Setup ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -459,24 +461,30 @@ int main() {
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 
-    // Load shaders
-    std::string sunVSs = readFile("shaders/sun.vert");
-    std::string sunFSs = readFile("shaders/sun.frag");
+    // === Шейдеры, текстуры, VAO/VBO инициализация ===
+    std::string planetVSs = readFile("shaders/planet.vert");
+    std::string planetFSs = readFile("shaders/planet.frag");
+
     std::string skyVSs = readFile("shaders/skybox.vert");
     std::string skyFSs = readFile("shaders/skybox.frag");
 
-    if (sunVSs.empty() || sunFSs.empty()) std::cerr << "Missing sun shaders\n";
-    if (skyVSs.empty() || skyFSs.empty()) std::cerr << "Missing skybox shaders\n";
+    std::string sunVSs = readFile("shaders/sun.vert");
+    std::string sunFSs = readFile("shaders/sun.frag");
 
-    GLuint sunV = compileShaderSrc(sunVSs.c_str(), GL_VERTEX_SHADER, "sun.vert");
-    GLuint sunF = compileShaderSrc(sunFSs.c_str(), GL_FRAGMENT_SHADER, "sun.frag");
-    GLuint sunProg = linkProgram(sunV, sunF);
+    if (skyVSs.empty() || skyFSs.empty()) std::cerr << "Missing skybox shaders\n";
+    GLuint planetV = compileShaderSrc(planetVSs.c_str(), GL_VERTEX_SHADER, "planet.vert");
+    GLuint planetF = compileShaderSrc(planetFSs.c_str(), GL_FRAGMENT_SHADER, "planet.frag");
+    GLuint planetProg = linkProgram(planetV, planetF);
 
     GLuint skyV = compileShaderSrc(skyVSs.c_str(), GL_VERTEX_SHADER, "skybox.vert");
     GLuint skyF = compileShaderSrc(skyFSs.c_str(), GL_FRAGMENT_SHADER, "skybox.frag");
     GLuint skyProg = linkProgram(skyV, skyF);
 
-    // Create sphere mesh for planets sun
+    GLuint sunV = compileShaderSrc(sunVSs.c_str(), GL_VERTEX_SHADER, "sun.vert");
+    GLuint sunF = compileShaderSrc(sunFSs.c_str(), GL_FRAGMENT_SHADER, "sun.frag");
+    GLuint sunProg = linkProgram(sunV, sunF);
+
+
     std::vector<float> verts; std::vector<unsigned int> inds;
     createSphere(1.0f, 64, 64, verts, inds);
     GLuint sunVAO, sunVBO, sunEBO;
@@ -494,10 +502,9 @@ int main() {
 
     GLsizei sphereIndexCount = (GLsizei)inds.size();
 
-    // Skybox VAO
-    GLuint skyVAO, skyVBO; createSkyboxVAO(skyVAO, skyVBO);
+    GLuint skyVAO, skyVBO; 
+    createSkyboxVAO(skyVAO, skyVBO);
 
-    // Textures
     GLuint sunTex = loadTextureTry("assets/sun.jpg");
     GLuint texMercury = loadTextureTry("assets/mercury.jpg");
     GLuint texVenus   = loadTextureTry("assets/venus.jpg");
@@ -508,6 +515,7 @@ int main() {
     GLuint texUranus  = loadTextureTry("assets/uranus.jpg");
     GLuint texNeptune = loadTextureTry("assets/neptune.jpg");
     GLuint texSaturnRing = loadTextureTry("assets/saturn_ring.png");
+    GLuint texMoon = loadTextureTry("assets/moon.jpg"); // Новый текстур Луны
 
     std::vector<std::string> faces = {
         "assets/skybox/starfield_rt.tga",
@@ -519,15 +527,13 @@ int main() {
     };
     GLuint cubemap = loadCubemapFaces(faces);
 
-    // Uniforms for samplers
-    glUseProgram(sunProg);
-    GLint sunTexLoc = glGetUniformLocation(sunProg, "sunTex");
+    glUseProgram(planetProg);
+    GLint sunTexLoc = glGetUniformLocation(planetProg, "sunTex");
     if (sunTexLoc >= 0) glUniform1i(sunTexLoc, 0);
     glUseProgram(skyProg);
     GLint skyLoc = glGetUniformLocation(skyProg, "skybox");
     if (skyLoc >= 0) glUniform1i(skyLoc, 0);
 
-    // Orbital periods by planet (days)
     std::map<std::string, float> orbitalPeriods = {
         {"Mercury", 87.97f},
         {"Venus", 224.7f},
@@ -538,31 +544,35 @@ int main() {
         {"Uranus", 30589.0f},
         {"Neptune", 59800.0f}
     };
-
-    // Conversion helper: rotation speed in degrees per second from hours
     auto rotSpeedH = [](float hours) -> float {
         return 360.0f / (hours * 3600.0f);
     };
 
-    // Create planet vector with orbitSpeed and rotationSpeed including axial tilt
     std::vector<Planet> planets = {
-        {"Mercury", 2.0f, degPerSec(orbitalPeriods["Mercury"]), rotSpeedH(1407.6f), 0.01f, 0.09f, texMercury, 0.0f, 0.0f, false, 0},
-        {"Venus",   3.0f, degPerSec(orbitalPeriods["Venus"]),   rotSpeedH(-5832.5f), 177.4f, 0.19f, texVenus, 60.0f, 0.0f, false, 0},
-        {"Earth",   4.0f, degPerSec(orbitalPeriods["Earth"]),   rotSpeedH(23.93f), 23.44f, 0.205f, texEarth, 120.0f, 0.0f, false, 0},
-        {"Mars",    5.0f, degPerSec(orbitalPeriods["Mars"]),    rotSpeedH(24.62f), 25.19f, 0.14f, texMars, 200.0f, 0.0f, false, 0},
-        {"Jupiter", 7.0f, degPerSec(orbitalPeriods["Jupiter"]), rotSpeedH(9.93f), 3.13f, 0.48f, texJupiter, 20.0f, 0.0f, false, 0},
-        {"Saturn",  9.0f, degPerSec(orbitalPeriods["Saturn"]),  rotSpeedH(10.56f), 26.73f, 0.42f, texSaturn, 300.0f, 0.0f, true,  texSaturnRing},
-        {"Uranus",  11.5f, degPerSec(orbitalPeriods["Uranus"]),  rotSpeedH(-17.24f), 97.77f, 0.28f, texUranus, 340.0f, 0.0f, false, 0},
-        {"Neptune", 14.0f, degPerSec(orbitalPeriods["Neptune"]), rotSpeedH(16.11f), 28.32f, 0.27f, texNeptune, 80.0f, 0.0f, false, 0}
+        {"Mercury", 2.0f, degPerSec(orbitalPeriods["Mercury"]), rotSpeedH(1407.6f), 0.01f, 0.09f, texMercury, 0.0f, 0.0f, false, 0, {}},
+        {"Venus",   3.0f, degPerSec(orbitalPeriods["Venus"]),   rotSpeedH(-5832.5f), 177.4f, 0.19f, texVenus, 60.0f, 0.0f, false, 0, {}},
+        {"Earth",   4.0f, degPerSec(orbitalPeriods["Earth"]),   rotSpeedH(23.93f), 23.44f, 0.205f, texEarth, 120.0f, 0.0f, false, 0, {}},
+        {"Mars",    5.0f, degPerSec(orbitalPeriods["Mars"]),    rotSpeedH(24.62f), 25.19f, 0.14f, texMars, 200.0f, 0.0f, false, 0, {}},
+        {"Jupiter", 7.0f, degPerSec(orbitalPeriods["Jupiter"]), rotSpeedH(9.93f), 3.13f, 0.48f, texJupiter, 20.0f, 0.0f, false, 0, {}},
+        {"Saturn",  9.0f, degPerSec(orbitalPeriods["Saturn"]),  rotSpeedH(10.56f), 26.73f, 0.42f, texSaturn, 300.0f, 0.0f, true,  texSaturnRing, {}},
+        {"Uranus",  11.5f, degPerSec(orbitalPeriods["Uranus"]),  rotSpeedH(-17.24f), 97.77f, 0.28f, texUranus, 340.0f, 0.0f, false, 0, {}},
+        {"Neptune", 14.0f, degPerSec(orbitalPeriods["Neptune"]), rotSpeedH(16.11f), 28.32f, 0.27f, texNeptune, 80.0f, 0.0f, false, 0, {}}
     };
+    planets[2].moons.push_back({
+        "Moon",  
+        0.3f,                
+        degPerSec(27.3f),     
+        degPerSec(27.3f),
+        0.05f,               
+        texMoon,
+        0.0f, 0.0f
+    });
 
-    // Ring mesh for Saturn
     GLuint ringVAO = 0, ringVBO = 0, ringEBO = 0; GLsizei ringIndexCount = 0;
     if (texSaturnRing) {
         createRingMesh(ringVAO, ringVBO, ringEBO, ringIndexCount, 0.85f, 1.1f, 256);
     }
 
-    // Planet VAO reuse sphere mesh
     GLuint planetVAO, planetVBO, planetEBO;
     glGenVertexArrays(1, &planetVAO);
     glGenBuffers(1, &planetVBO);
@@ -575,7 +585,6 @@ int main() {
     glEnableVertexAttribArray(2); glVertexAttribPointer(2,2,GL_FLOAT,GL_FALSE,stride,(void*)(6*sizeof(float)));
     glBindVertexArray(0);
 
-    // Create orbit lines
     std::vector<GLuint> orbitVAOs(planets.size());
     std::vector<GLuint> orbitVBOs(planets.size());
     std::vector<int> orbitVertexCounts(planets.size());
@@ -583,7 +592,6 @@ int main() {
         std::vector<float> orbitLineVerts;
         createOrbitLine(planets[i].orbitRadius, 128, orbitLineVerts);
         orbitVertexCounts[i] = (int)orbitLineVerts.size()/3;
-
         glGenVertexArrays(1, &orbitVAOs[i]);
         glGenBuffers(1, &orbitVBOs[i]);
         glBindVertexArray(orbitVAOs[i]);
@@ -594,58 +602,123 @@ int main() {
         glBindVertexArray(0);
     }
 
-    // Initial camera settings
-    cam.distance = 12.0f;
-    cam.yaw = glm::radians(90.0f);
-    cam.pitch = glm::radians(-10.0f);
+    cam.distance = 12.0f; cam.yaw = glm::radians(90.0f); cam.pitch = glm::radians(-10.0f);
     cam.flyPos = glm::vec3(0.0f, 0.0f, 12.0f);
+
+    glUseProgram(planetProg);
+    GLint planetLightPosLoc = glGetUniformLocation(planetProg, "lightPos");
+    GLint planetViewPosLoc = glGetUniformLocation(planetProg, "viewPos");
+    GLint planetAmbientKLoc = glGetUniformLocation(planetProg, "ambientK");
+    GLint planetModelLoc = glGetUniformLocation(planetProg, "model");
+    GLint planetViewLoc = glGetUniformLocation(planetProg, "view");
+    GLint planetProjLoc = glGetUniformLocation(planetProg, "projection");
+    GLint planetTexLoc = glGetUniformLocation(planetProg, "planetTex");
+    
+    if (planetLightPosLoc < 0) {
+        std::cerr << "ERROR: planetProg missing uniform 'lightPos'! Shader may not be compiled correctly.\n";
+        std::cerr << "Make sure planet.frag uses 'uniform vec3 lightPos;'\n";
+        std::cerr << "Current shader may still use 'lightDir' instead of 'lightPos'!\n";
+    } else {
+        std::cout << "✓ planetProg lightPos location: " << planetLightPosLoc << std::endl;
+    }
+    
+    GLint testLightDir = glGetUniformLocation(planetProg, "lightDir");
+    if (testLightDir >= 0) {
+        std::cerr << "WARNING: planetProg still has 'lightDir' uniform! Shader may not be updated!\n";
+        std::cerr << "Make sure planet.frag uses 'uniform vec3 lightPos;' NOT 'lightDir'!\n";
+    }
 
     double lastTime = glfwGetTime();
 
     while (!glfwWindowShouldClose(window)) {
         double now = glfwGetTime();
-        float dtReal = (float)(now - lastTime);
+        float dtReal = (float)(now - lastTime); 
         lastTime = now;
-
+        
         if (flyMode) cam.moveFly(dtReal);
         glfwPollEvents();
-
-        // ImGui frame start
+        
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // Simulation control UI
-        ImGui::Begin("Simulation Controls");
-        if (ImGui::Button(simulationRunning ? "Stop" : "Start"))
-            simulationRunning = !simulationRunning;
-        ImGui::SameLine();
-        ImGui::SliderFloat("Speed Multiplier", &timeMultiplier, 0.1f, 315360000.0f, "%.0fx");
-
-        // Calculate how much time advances this frame realistically scaled to speed
-        float deltaSimulatedDaysThisFrame = dtReal * timeMultiplier / 86400.0f;
-        simulatedTimeDays += simulationRunning ? deltaSimulatedDaysThisFrame : 0.0f;
-
-        std::string simTimeStr = formatSimulatedTime(simulatedTimeDays);
-        ImGui::Text("Simulated Time: %s (%.2f days/sec)", simTimeStr.c_str(), timeMultiplier);
-
+        // === ImGui панели ===
+        ImGui::Begin("Focus");
+        const char* planetNames[] = {"Sun","Mercury","Venus","Earth","Mars","Jupiter","Saturn","Uranus","Neptune"};
+        static int focusIdx = selectedPlanetIndex+1;
+        if(ImGui::Combo("Focus",&focusIdx,planetNames,9)) {
+            selectedPlanetIndex=focusIdx-1; 
+            flyMode=false;
+        }
         ImGui::End();
 
-
-        // Update simulation time if running
-        if (simulationRunning) {
-            simulatedTimeDays += dtReal * timeMultiplier / 86400.0f;
+        ImGui::Begin("Simulation");
+        if(ImGui::Button(simulationRunning?"Pause":"Start")) simulationRunning=!simulationRunning;
+        ImGui::SameLine(); 
+        if(ImGui::Button("Reset")) {
+            simulatedTimeDays=0.0f; 
+            for(auto &p:planets){
+                p.orbitAngle=0.0f;
+                p.rotationAngle=0.0f;
+                for(auto &m:p.moons){
+                    m.orbitAngle=0.0f;
+                    m.rotationAngle=0.0f;
+                }
+            }
         }
+        ImGui::SliderFloat("Speed",&timeMultiplier,0.1f,315360000.f,"%.0fx",ImGuiSliderFlags_Logarithmic);
+        std::string simTimeStr=formatSimulatedTime(simulatedTimeDays);
+        ImGui::Text("Simulated Time: %s",simTimeStr.c_str());
+        ImGui::End();
+
+        if(simulationRunning) simulatedTimeDays+=dtReal*timeMultiplier/86400.f;
         float dtSim = dtReal * timeMultiplier;
 
-        glClearColor(0,0,0,1);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        for(size_t i = 0; i < planets.size(); ++i) {
+            Planet &p = planets[i];
+            p.orbitAngle += dtSim * p.orbitSpeed;
+            if(p.orbitAngle > 360.f) p.orbitAngle -= 360.f;
+            float oldRotation = p.rotationAngle;
+            p.rotationAngle += dtSim * p.rotationSpeed;
+            if(p.rotationAngle > 360.f) p.rotationAngle -= 360.f;
+            
+            static int debugPlanetFrameCount = 0;
+            if (debugPlanetFrameCount++ == 0 && i == 0) { 
+                std::cout << "=== DEBUG: Планета " << p.name << " rotationAngle обновлен: " << oldRotation 
+                          << " -> " << p.rotationAngle << " (dtSim=" << dtSim << ", speed=" << p.rotationSpeed << ")\n";
+                std::cout << "=== DEBUG: rotationAngle НЕ зависит от камеры, только от времени!\n";
+            }
 
-        glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)SCR_W/(float)SCR_H, 0.1f, 200.0f);
-        glm::mat4 view = cam.view();
+            for(auto &m : p.moons) {
+                m.orbitAngle += dtSim * m.orbitSpeed;
+                if(m.orbitAngle > 360.0f) m.orbitAngle -= 360.0f;
+                m.rotationAngle += dtSim * m.rotationSpeed;
+                if(m.rotationAngle > 360.0f) m.rotationAngle -= 360.0f;
+            }
+        }
+
+
+        // === CAMERA TARGET ===
+        if (selectedPlanetIndex >= 0 && selectedPlanetIndex < (int)planets.size()) {
+            Planet& p = planets[selectedPlanetIndex];
+            float angRad = glm::radians(p.orbitAngle);
+            glm::vec3 planetCenter(cosf(angRad) * p.orbitRadius, 0.f, sinf(angRad) * p.orbitRadius);
+            cam.setTarget(planetCenter); 
+        } else {
+            cam.setTarget(glm::vec3(0.0f)); 
+        }
+
+
+        glClearColor(0,0,0,1); 
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+        glm::mat4 proj = glm::perspective(glm::radians(45.0f),(float)SCR_W/(float)SCR_H,0.1f,200.0f);
+        glm::mat4 view = cam.view();  
         glm::vec3 camPos = cam.pos();
+        
+        glm::vec3 sunPos = glm::vec3(0.0f, 0.0f, 0.0f);
 
-        // Draw skybox
+        // === 1. SKYBOX ===
         glDepthMask(GL_FALSE);
         glDisable(GL_CULL_FACE);
         glUseProgram(skyProg);
@@ -660,128 +733,153 @@ int main() {
         glEnable(GL_CULL_FACE);
         glDepthMask(GL_TRUE);
 
-        // Draw sun at origin
-        glm::mat4 sunModel = glm::rotate(glm::mat4(1.0f), (float)now * glm::radians(12.0f), glm::vec3(0.0f,1.0f,0.0f));
+        // === 2. SUN ===
+        glm::mat4 sunModel = glm::mat4(1.0f);
+
+        sunModel = glm::rotate(sunModel, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // Полюса вверх
+        sunModel = glm::rotate(sunModel, (float)glfwGetTime() * glm::radians(12.0f), glm::vec3(0.0f, 0.0f, 1.0f)); // Вращение (только от времени!)
         sunModel = glm::scale(sunModel, glm::vec3(1.4f));
-        glm::vec3 sunWorldPos = glm::vec3(sunModel * glm::vec4(0.0f,0.0f,0.0f,1.0f));
+
 
         glUseProgram(sunProg);
         glUniformMatrix4fv(glGetUniformLocation(sunProg,"model"),1,GL_FALSE,glm::value_ptr(sunModel));
         glUniformMatrix4fv(glGetUniformLocation(sunProg,"view"),1,GL_FALSE,glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(sunProg,"projection"),1,GL_FALSE,glm::value_ptr(proj));
-        glm::vec3 sunToCam = glm::normalize(camPos - sunWorldPos);
-        glUniform3f(glGetUniformLocation(sunProg,"lightDir"), sunToCam.x, sunToCam.y, sunToCam.z);
+
+        glm::vec3 sunLightDir = glm::normalize(sunPos - camPos);
+        glUniform3f(glGetUniformLocation(sunProg, "lightPos"), sunPos.x, sunPos.y, sunPos.z);
         glUniform3f(glGetUniformLocation(sunProg,"viewPos"), camPos.x, camPos.y, camPos.z);
+        int sunTexLoc = glGetUniformLocation(sunProg, "sunTex");
+        glUniform1i(sunTexLoc, 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, sunTex);
-        glBindVertexArray(sunVAO);
+        glBindVertexArray(planetVAO);
         glDrawElements(GL_TRIANGLES, sphereIndexCount, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
-        // Draw orbit lines
-        glUseProgram(sunProg);
-        for (size_t i = 0; i < planets.size(); ++i) {
-            glUniformMatrix4fv(glGetUniformLocation(sunProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
-            glUniformMatrix4fv(glGetUniformLocation(sunProg,"view"),1,GL_FALSE,glm::value_ptr(view));
-            glUniformMatrix4fv(glGetUniformLocation(sunProg,"projection"),1,GL_FALSE,glm::value_ptr(proj));
 
-            glm::vec3 whiteLight(1.0f,1.0f,1.0f);
-            glUniform3f(glGetUniformLocation(sunProg,"lightDir"), whiteLight.x, whiteLight.y, whiteLight.z);
-            glUniform3f(glGetUniformLocation(sunProg,"viewPos"), camPos.x, camPos.y, camPos.z);
+        // === 3. ORBIT LINES ===
+        for (size_t i = 0; i < planets.size(); ++i) {
+            glUseProgram(planetProg);
+            glUniformMatrix4fv(glGetUniformLocation(planetProg,"model"),1,GL_FALSE,glm::value_ptr(glm::mat4(1.0f)));
+            glUniformMatrix4fv(glGetUniformLocation(planetProg,"view"),1,GL_FALSE,glm::value_ptr(view));
+            glUniformMatrix4fv(glGetUniformLocation(planetProg,"projection"),1,GL_FALSE,glm::value_ptr(proj));
+
             glBindVertexArray(orbitVAOs[i]);
             glDrawArrays(GL_LINE_STRIP, 0, orbitVertexCounts[i]);
             glBindVertexArray(0);
         }
 
-        // Update planet positions, orbit and self rotation
-        if (selectedPlanetIndex >= 0 && selectedPlanetIndex < (int)planets.size()) {
-            Planet &focusP = planets[selectedPlanetIndex];
-            cam.setTarget(glm::vec3(cos(glm::radians(focusP.orbitAngle)) * focusP.orbitRadius, 0.0f, sin(glm::radians(focusP.orbitAngle)) * focusP.orbitRadius));
-            flyMode = false;
+        // === 4. PLANETS & MOONS ===
+        glUseProgram(planetProg); 
+        
+        if (planetLightPosLoc >= 0) {
+            glUniform3f(planetLightPosLoc, sunPos.x, sunPos.y, sunPos.z);
+
+            static int debugFrameCount = 0;
+            if (debugFrameCount++ == 0) {  
+                std::cout << "=== DEBUG: lightPos установлен в: (" << sunPos.x << ", " << sunPos.y << ", " << sunPos.z << ")\n";
+                std::cout << "=== DEBUG: camPos = (" << camPos.x << ", " << camPos.y << ", " << camPos.z << ")\n";
+                std::cout << "=== DEBUG: Источник света = СОЛНЦЕ (0,0,0), НЕ камера!\n";
+            }
         } else {
-            cam.setTarget(glm::vec3(0.0f));
+            std::cerr << "ERROR: planetLightPosLoc is invalid! Shadows will not work!\n";
+            std::cerr << "ERROR: Шейдер может не перекомпилироваться! Проверьте planet.frag\n";
         }
+        
+        if (planetViewPosLoc >= 0) {
+            glUniform3f(planetViewPosLoc, camPos.x, camPos.y, camPos.z);
+        }
+        
+        for(auto &p:planets) {
+            float angRad=glm::radians(p.orbitAngle);
+            glm::vec3 planetPos(cosf(angRad)*p.orbitRadius,0.f,sinf(angRad)*p.orbitRadius);
 
-        for (auto &p : planets) {
-            p.orbitAngle += dtSim * p.orbitSpeed;
-            if (p.orbitAngle > 360.0f) p.orbitAngle -= 360.0f;
-
-            p.rotationAngle += dtSim * p.rotationSpeed;
-            if (p.rotationAngle > 360.0f) p.rotationAngle -= 360.0f;
-
-            float angRad = glm::radians(p.orbitAngle);
-            glm::vec3 planetPos = glm::vec3(cosf(angRad) * p.orbitRadius, 0.0f, sinf(angRad) * p.orbitRadius);
-
-            glm::mat4 pModel = glm::translate(glm::mat4(1.0f), planetPos);
-
-            // Apply axial tilt around X axis
-            pModel = glm::rotate(pModel, glm::radians(p.axialTilt), glm::vec3(1.0f, 0.0f, 0.0f));
-
-            // Then planet self-rotation about Y axis
-            pModel = glm::rotate(pModel, glm::radians(p.rotationAngle), glm::vec3(0.0f, 1.0f, 0.0f));
-
+            glm::mat4 pModel = glm::mat4(1.0f);
+            pModel = glm::translate(pModel, planetPos);  
+            pModel = glm::rotate(pModel, glm::radians(-90.0f), glm::vec3(1.0f,0.0f,0.0f)); 
+            pModel = glm::rotate(pModel, glm::radians(p.axialTilt), glm::vec3(0.0f,1.0f,0.0f)); 
+            pModel = glm::rotate(pModel, glm::radians(p.rotationAngle), glm::vec3(0.0f,0.0f,1.0f)); 
             pModel = glm::scale(pModel, glm::vec3(p.size));
 
-            glUniformMatrix4fv(glGetUniformLocation(sunProg,"model"), 1, GL_FALSE, glm::value_ptr(pModel));
-            glUniformMatrix4fv(glGetUniformLocation(sunProg,"view"), 1, GL_FALSE, glm::value_ptr(view));
-            glUniformMatrix4fv(glGetUniformLocation(sunProg,"projection"), 1, GL_FALSE, glm::value_ptr(proj));
-
-            glm::vec3 lightDir = glm::normalize(sunWorldPos - planetPos);
-            glUniform3f(glGetUniformLocation(sunProg,"lightDir"), lightDir.x, lightDir.y, lightDir.z);
-            glUniform3f(glGetUniformLocation(sunProg,"viewPos"), camPos.x, camPos.y, camPos.z);
-
+            if (planetModelLoc >= 0) glUniformMatrix4fv(planetModelLoc, 1, GL_FALSE, glm::value_ptr(pModel));
+            if (planetViewLoc >= 0) glUniformMatrix4fv(planetViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+            if (planetProjLoc >= 0) glUniformMatrix4fv(planetProjLoc, 1, GL_FALSE, glm::value_ptr(proj));
+                    
+            if (planetAmbientKLoc >= 0) {
+                glUniform1f(planetAmbientKLoc, 0.10f); 
+            }
+                    
+            if (planetTexLoc >= 0) glUniform1i(planetTexLoc, 0);
             glActiveTexture(GL_TEXTURE0);
-            if (p.texture) glBindTexture(GL_TEXTURE_2D, p.texture);
-            else glBindTexture(GL_TEXTURE_2D, sunTex);
-
+            glBindTexture(GL_TEXTURE_2D, p.texture); 
             glBindVertexArray(planetVAO);
             glDrawElements(GL_TRIANGLES, sphereIndexCount, GL_UNSIGNED_INT, 0);
             glBindVertexArray(0);
 
-            // Draw Saturn's ring
-            if (p.hasRing && ringVAO && p.ringTex) {
-                glm::mat4 rModel = glm::translate(glm::mat4(1.0f), planetPos);
-                rModel = glm::rotate(rModel, glm::radians(26.7f), glm::vec3(1.0f,0.0f,0.0f));
-                rModel = glm::scale(rModel, glm::vec3(p.size * 1.3f));
 
-                glUniformMatrix4fv(glGetUniformLocation(sunProg,"model"),1,GL_FALSE,glm::value_ptr(rModel));
-                glUniformMatrix4fv(glGetUniformLocation(sunProg,"view"),1,GL_FALSE,glm::value_ptr(view));
-                glUniformMatrix4fv(glGetUniformLocation(sunProg,"projection"),1,GL_FALSE,glm::value_ptr(proj));
-                glUniform3f(glGetUniformLocation(sunProg,"lightDir"), lightDir.x, lightDir.y, lightDir.z);
-                glUniform3f(glGetUniformLocation(sunProg,"viewPos"), camPos.x, camPos.y, camPos.z);
+
+            // === MOONS ===
+            for (auto &m : p.moons) {
+                float moonAngRad = glm::radians(m.orbitAngle);
+                glm::vec3 moonPos = planetPos + glm::vec3(cosf(moonAngRad) * m.orbitRadius, 0.0f, sinf(moonAngRad) * m.orbitRadius);
+
+                glm::mat4 moonModel = glm::mat4(1.0f);
+                moonModel = glm::translate(moonModel, moonPos);
+                moonModel = glm::rotate(moonModel, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); 
+                moonModel = glm::rotate(moonModel, glm::radians(m.rotationAngle), glm::vec3(0.0f, 0.0f, 1.0f)); 
+                moonModel = glm::scale(moonModel, glm::vec3(m.size));
+
+                if (planetModelLoc >= 0) glUniformMatrix4fv(planetModelLoc, 1, GL_FALSE, glm::value_ptr(moonModel));
+
+
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, m.texture);
+                glBindVertexArray(planetVAO);
+                glDrawElements(GL_TRIANGLES, sphereIndexCount, GL_UNSIGNED_INT, 0);
+                glBindVertexArray(0);
+            }       
+
+            // === SATURN RING ===
+            if (p.hasRing && ringVAO && p.ringTex) {
+                glm::mat4 rModel=glm::translate(glm::mat4(1.0f),planetPos);
+                rModel = glm::rotate(rModel, glm::radians(26.7f), glm::vec3(1.0f,0.0f,0.0f));
+                rModel = glm::scale(rModel, glm::vec3(p.size*2.0f));
+
+                if (planetModelLoc >= 0) glUniformMatrix4fv(planetModelLoc, 1, GL_FALSE, glm::value_ptr(rModel));
+                if (planetViewLoc >= 0) glUniformMatrix4fv(planetViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+                if (planetProjLoc >= 0) glUniformMatrix4fv(planetProjLoc, 1, GL_FALSE, glm::value_ptr(proj));
+
 
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                 glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, p.ringTex);
-                glBindVertexArray(ringVAO);
-                glDrawElements(GL_TRIANGLES, ringIndexCount, GL_UNSIGNED_INT, 0);
+                glBindTexture(GL_TEXTURE_2D,p.ringTex);
+                glBindVertexArray(ringVAO); 
+                glDrawElements(GL_TRIANGLES, ringIndexCount, GL_UNSIGNED_INT, 0); 
                 glBindVertexArray(0);
                 glDisable(GL_BLEND);
             }
         }
 
-        // Render ImGui overlay
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
         glfwSwapBuffers(window);
-    }
+    }   
 
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
 
-    glDeleteVertexArrays(1, &sunVAO); glDeleteBuffers(1, &sunVBO); glDeleteBuffers(1, &sunEBO);
-    glDeleteVertexArrays(1, &planetVAO); glDeleteBuffers(1, &planetVBO); glDeleteBuffers(1, &planetEBO);
-    if (ringVAO) { glDeleteVertexArrays(1, &ringVAO); glDeleteBuffers(1, &ringVBO); glDeleteBuffers(1, &ringEBO); }
-    for (auto vao : orbitVAOs) glDeleteVertexArrays(1, &vao);
-    for (auto vbo : orbitVBOs) glDeleteBuffers(1, &vbo);
-    glDeleteVertexArrays(1, &skyVAO); glDeleteBuffers(1, &skyVBO);
-    glDeleteProgram(sunProg); glDeleteProgram(skyProg);
-    GLuint texs[] = { sunTex, texMercury, texVenus, texEarth, texMars, texJupiter, texSaturn, texUranus, texNeptune, texSaturnRing, cubemap };
-    for (auto t : texs) if (t) glDeleteTextures(1, &t);
-
+    // --- cleanup ---
+    ImGui_ImplOpenGL3_Shutdown(); ImGui_ImplGlfw_Shutdown(); ImGui::DestroyContext();
+    glDeleteVertexArrays(1,&sunVAO); glDeleteBuffers(1,&sunVBO); glDeleteBuffers(1,&sunEBO);
+    glDeleteVertexArrays(1,&planetVAO); glDeleteBuffers(1,&planetVBO); glDeleteBuffers(1,&planetEBO);
+    if (ringVAO) { glDeleteVertexArrays(1,&ringVAO); glDeleteBuffers(1,&ringVBO); glDeleteBuffers(1,&ringEBO);}
+    for(auto vao:orbitVAOs) glDeleteVertexArrays(1,&vao);
+    for(auto vbo:orbitVBOs) glDeleteBuffers(1,&vbo);
+    glDeleteVertexArrays(1,&skyVAO); glDeleteBuffers(1,&skyVBO);
+    glDeleteProgram(planetProg); glDeleteProgram(skyProg);
+    GLuint texs[]={sunTex,texMercury,texVenus,texEarth,texMars,texJupiter,texSaturn,texUranus,texNeptune,texSaturnRing,cubemap,texMoon};
+    for(auto t:texs) if(t) glDeleteTextures(1,&t);
     glfwTerminate();
     return 0;
 }
+
