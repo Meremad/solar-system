@@ -1,76 +1,120 @@
-# solar-system
+# 🌞 Solar System — OpenGL Visualization
 
-# 🌞 Solar System — OpenGL (macOS + VS Code)
+A cross-platform (macOS/Windows/Linux) OpenGL project featuring an interactive, real‑time visualization of the Solar System. Includes the Sun, planets, moons, Saturn’s rings, skybox, dynamic camera controls, and ImGui UI tools.
 
-Учебный проект на OpenGL: вращающееся солнце (с текстурой и шейдером) + звёздный фон (skybox).  
-Адаптирован под macOS и сборку через CMake. Работает с GLFW + GLEW + GLM + stb_image.
-
+Built with **C++17**, **OpenGL**, **GLFW**, **GLEW**, **GLM**, and **ImGui**. Easily extendable with custom shaders and textures.
 
 ---
 
-## Возможности
+## ✨ Features
 
-- Вращающееся по своей оси Солнце (текстура + шейдер).  
-- Skybox (звёздное небо) из 6 файлов.  
-- Комбинированная камера: `orbit` (мышь + колесо) и `fly` (WASD + мышь), переключение — `F`.  
-- Генерация сферы в коде (не нужен внешний класс).  
-- Поддержка пользовательских шейдеров (положи их в `shaders/`).
-
----
-
-## Требования
-
-- macOS (Intel / Apple Silicon)
-- Homebrew (рекомендуется)
-- Компилятор с поддержкой C++11 или выше (clang)
-- Пакеты: `glfw`, `glew`, `glm`, `cmake`, `make`/`ninja`
+* Realistic rotation and orbital motion of planets, moons, and Saturn’s rings.
+* Textured models of all planets, moons, and the Sun (stored in `assets/`).
+* Skybox support (`assets/skybox/`).
+* Time simulation with adjustable speed.
+* Switchable orbit/fly camera (mouse + keyboard, ImGui UI).
+* Import and quickly switch between custom shaders.
 
 ---
 
-## Установка зависимостей (macOS)
+## 📦 Requirements
 
-Открой терминал и выполни:
+**Compiler:** C++17 compatible (clang / gcc / MSVC)
 
-```bash
-# Homebrew, если ещё не установлен:
-# /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+**Build system:** CMake ≥ 3.11
 
-brew update
+**Libraries:**
+
+* GLFW
+* GLEW
+* GLM
+* ImGui (included in project folder)
+* stb_image.h (included automatically)
+
+### macOS Installation
+
+```
 brew install cmake glfw glew glm
+```
+
+### Linux Installation
+
+```
+sudo apt install cmake libglfw3-dev libglew-dev libglm-dev
+```
 
 ---
 
-## Cборка проекта
-mkdir -p build
+## 🚀 Build & Run
+
+```
+mkdir build
 cd build
 cmake ..
-cmake --build .
+make -j4
+./SolarSystem   # or ./solar-system, ./main (depends on binary name)
+```
 
-## Запуск
+> Important: Run the executable **from the project root** to ensure access to `assets/` and `shaders/`.
 
-./build/SolarSystem
+---
 
+## 📁 Project Structure
 
-## Структура проекта 
-
-solar-system-opengl/
+```
+solar-system/
 ├── assets/
-│   ├── sun.jpg
+│   ├── earth.jpg, mars.jpg, venus.jpg, ...
+│   ├── moon.jpg, sun.jpg, saturn_ring.png
 │   └── skybox/
-│       ├── starfield_rt.tga
-│       ├── starfield_lf.tga
-│       ├── starfield_up.tga
-│       ├── starfield_dn.tga
-│       ├── starfield_ft.tga
-│       └── starfield_bk.tga
-├── include/
-│   └── stb_image.h
+│       ├── starfield_rt.tga ... starfield_bk.tga
 ├── shaders/
-│   ├── sun.vert
-│   ├── sun.frag
-│   ├── skybox.vert
-│   └── skybox.frag
+│   ├── planet.vert/frag
+│   ├── sun.vert/frag
+│   └── skybox.vert/frag
 ├── src/
 │   └── main.cpp
+├── include/
+│   └── stb_image.h
+├── imgui/
+│   └── ... (ImGui source files)
 ├── CMakeLists.txt
-└── README.md
+├── .gitignore
+├── README.md
+└── ...
+```
+
+---
+
+## 🎮 Controls
+
+**Orbit Camera:**
+
+* Hold LMB + move mouse — rotate
+* Mouse wheel — zoom
+
+**Fly Camera:**
+
+* Press **F** to toggle
+* `W A S D` — movement
+* Space / Shift — up/down
+* Mouse — look around
+
+**ImGui UI:**
+
+* Select focus (planet)
+* Adjust time speed
+* Reset simulation
+
+---
+
+## 🛠 Notes
+
+* All textures and shaders are stored in `assets/` and `shaders/`.
+* Add your own shaders and load them through the existing CMake/shader loader system.
+* Build system automatically generates all required binaries.
+* Double‑check `.gitignore` and `CMakeLists.txt` if adding new files.
+
+---
+
+Enjoy exploring your own virtual Solar System! 🚀🌍
